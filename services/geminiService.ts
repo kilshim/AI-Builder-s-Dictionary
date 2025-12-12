@@ -3,15 +3,31 @@ import { Term, Category } from '../types';
 
 // Helper to safely access environment variables in various environments (Vite, Next.js, CRA)
 export const getSystemApiKey = (): string => {
+  let key = '';
+
+  // 1. Try Vite (import.meta.env)
   try {
-    // Standard Node/Webpack/CRA/Next.js environment
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      key = import.meta.env.VITE_API_KEY || import.meta.env.API_KEY || '';
     }
   } catch (e) {
-    // Ignore ReferenceError if process is not defined
+    // Ignore errors accessing import.meta
   }
-  return '';
+
+  if (key) return key;
+
+  // 2. Try Node/CRA/Next.js (process.env)
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      key = process.env.NEXT_PUBLIC_API_KEY || process.env.REACT_APP_API_KEY || process.env.API_KEY || '';
+    }
+  } catch (e) {
+    // Ignore errors accessing process
+  }
+  
+  return key;
 };
 
 // Helper to get the best available API key
