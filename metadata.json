@@ -1,0 +1,5 @@
+{
+  "name": "AI Builder's Dictionary",
+  "description": "A visual glossary for non-developers using AI to build apps. Includes Search & Add feature where AI generates explanations for any missing terms.",
+  "requestFramePermissions": []
+}
