@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { TERMS_DATA } from './constants';
 import { Category, Term } from './types';
 import TermCard from './components/TermCard';
 import TermModal from './components/TermModal';
 import ApiKeyModal from './components/ApiKeyModal';
-import { Search, Info, Bot, Settings, Sparkles, Loader2 } from 'lucide-react';
+import { Search, Info, Bot, Settings, Sparkles, Loader2, X } from 'lucide-react';
 import { generateNewTerm, getSystemApiKey } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -14,14 +14,24 @@ const App: React.FC = () => {
   
   // Custom Terms State (with LocalStorage persistence)
   const [customTerms, setCustomTerms] = useState<Term[]>(() => {
-    const saved = localStorage.getItem('customTerms');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('customTerms');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse customTerms", e);
+      return [];
+    }
   });
 
   // Deleted Default Terms IDs (to hide them)
   const [deletedDefaultIds, setDeletedDefaultIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('deletedDefaultIds');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('deletedDefaultIds');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse deletedDefaultIds", e);
+      return [];
+    }
   });
 
   // API Key State
@@ -36,10 +46,11 @@ const App: React.FC = () => {
   // Combine default (excluding deleted ones) and custom terms
   const allTerms = useMemo(() => {
     const visibleDefaultTerms = TERMS_DATA.filter(term => !deletedDefaultIds.includes(term.id));
+    // New terms first
     return [...customTerms, ...visibleDefaultTerms];
   }, [customTerms, deletedDefaultIds]);
 
-  // Save changes
+  // Save changes automatically
   useEffect(() => {
     localStorage.setItem('customTerms', JSON.stringify(customTerms));
   }, [customTerms]);
@@ -57,13 +68,24 @@ const App: React.FC = () => {
 
   // Handle Term Deletion
   const handleDeleteTerm = (id: string) => {
-    const isCustom = customTerms.some(t => t.id === id);
+    // 1. First, check if it's a Custom Term
+    const isCustomTerm = customTerms.some(term => term.id === id);
     
-    if (isCustom) {
-      setCustomTerms(prev => prev.filter(t => t.id !== id));
+    if (isCustomTerm) {
+      // Remove from custom terms
+      setCustomTerms(prev => {
+        const newTerms = prev.filter(t => t.id !== id);
+        return newTerms;
+      });
     } else {
-      setDeletedDefaultIds(prev => [...prev, id]);
+      // 2. Otherwise, treat it as a Default Term and hide it
+      setDeletedDefaultIds(prev => {
+        if (prev.includes(id)) return prev;
+        return [...prev, id];
+      });
     }
+    
+    // Close modal after deletion
     setSelectedTerm(null);
   };
 
@@ -116,6 +138,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    // Optional: Focus input after clear
+    document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
       
@@ -149,7 +177,7 @@ const App: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all shadow-sm"
+                  className="block w-full pl-10 pr-10 py-2 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all shadow-sm"
                   placeholder="궁금한 용어를 검색하거나 새로 만들어보세요..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -159,6 +187,15 @@ const App: React.FC = () => {
                     }
                   }}
                 />
+                {searchQuery && (
+                  <button 
+                    onClick={handleClearSearch}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    aria-label="검색어 삭제"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
               {/* Settings Button */}

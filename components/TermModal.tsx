@@ -32,7 +32,8 @@ const TermModal: React.FC<TermModalProps> = ({ term, onClose, onDelete }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent propagation
     if (window.confirm(`'${term.word}' 용어를 정말 삭제하시겠습니까?`)) {
       onDelete(term.id);
     }
