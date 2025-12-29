@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TERMS_DATA } from './constants';
 import { Category, Term } from './types';
 import TermCard from './components/TermCard';
 import TermModal from './components/TermModal';
 import ApiKeyModal from './components/ApiKeyModal';
-import { Search, Info, Bot, Settings, Sparkles, Loader2, X } from 'lucide-react';
+import { Search, Bot, Settings, Sparkles, Loader2, X, Info } from 'lucide-react';
 import { generateNewTerm, getSystemApiKey } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -46,7 +46,7 @@ const App: React.FC = () => {
   // Combine default (excluding deleted ones) and custom terms
   const allTerms = useMemo(() => {
     const visibleDefaultTerms = TERMS_DATA.filter(term => !deletedDefaultIds.includes(term.id));
-    // New terms first
+    // Custom terms take priority/come first
     return [...customTerms, ...visibleDefaultTerms];
   }, [customTerms, deletedDefaultIds]);
 
@@ -68,15 +68,11 @@ const App: React.FC = () => {
 
   // Handle Term Deletion
   const handleDeleteTerm = (id: string) => {
-    // 1. First, check if it's a Custom Term
+    // 1. Check if it's a Custom Term
     const isCustomTerm = customTerms.some(term => term.id === id);
     
     if (isCustomTerm) {
-      // Remove from custom terms
-      setCustomTerms(prev => {
-        const newTerms = prev.filter(t => t.id !== id);
-        return newTerms;
-      });
+      setCustomTerms(prev => prev.filter(t => t.id !== id));
     } else {
       // 2. Otherwise, treat it as a Default Term and hide it
       setDeletedDefaultIds(prev => {
@@ -89,7 +85,7 @@ const App: React.FC = () => {
     setSelectedTerm(null);
   };
 
-  // Handle Reset Data (passed to settings)
+  // Handle Reset Data
   const handleResetData = () => {
     if (window.confirm('삭제된 기본 용어들이 복구되고, 내가 만든 용어들은 모두 삭제됩니다. 초기화 하시겠습니까?')) {
       setDeletedDefaultIds([]);
@@ -102,9 +98,9 @@ const App: React.FC = () => {
     return allTerms.filter((term) => {
       const matchesCategory = activeCategory === 'ALL' || term.category === activeCategory;
       const matchesSearch = term.word.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            term.definition.includes(searchQuery) ||
-                            term.simpleExplanation.includes(searchQuery) ||
-                            term.tags.some(tag => tag.includes(searchQuery));
+                            term.definition.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            term.simpleExplanation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            term.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, searchQuery, allTerms]);
@@ -123,10 +119,10 @@ const App: React.FC = () => {
     try {
       const newTerm = await generateNewTerm(searchQuery, apiKey);
       if (newTerm) {
-        setCustomTerms(prev => [newTerm, ...prev]); // Add to beginning
-        setSelectedTerm(newTerm); // Open immediately
-        setSearchQuery(''); // Clear search
-        setActiveCategory('ALL'); // Reset filter to show it
+        setCustomTerms(prev => [newTerm, ...prev]);
+        setSelectedTerm(newTerm);
+        setSearchQuery('');
+        setActiveCategory('ALL');
       } else {
         alert("용어 생성에 실패했습니다. 올바른 단어인지 확인해보세요.");
       }
@@ -140,7 +136,6 @@ const App: React.FC = () => {
 
   const handleClearSearch = () => {
     setSearchQuery('');
-    // Optional: Focus input after clear
     document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
   };
 
@@ -155,7 +150,7 @@ const App: React.FC = () => {
         onResetData={handleResetData}
       />
 
-      {/* Header / Hero Section */}
+      {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -170,7 +165,6 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-3 w-full md:w-auto">
-              {/* Search Bar */}
               <div className="relative flex-grow md:w-80 lg:w-96">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-slate-400" />
@@ -198,7 +192,6 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Settings Button */}
               <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors relative"
@@ -212,7 +205,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Category Filter */}
           <div className="mt-6 flex gap-2 overflow-x-auto pb-2 scrollbar-hide no-scrollbar">
             <button
               onClick={() => setActiveCategory('ALL')}
@@ -244,16 +236,12 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
-        {/* Intro Banner - Only show if not searching */}
         {activeCategory === 'ALL' && !searchQuery && (
           <div className="mb-10 relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-900 text-white shadow-2xl p-6 md:p-10">
-            {/* Background Effects */}
             <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-72 h-72 bg-purple-500/30 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
             
             <div className="relative z-10 grid lg:grid-cols-12 gap-8 items-center">
-              
-              {/* Text Section */}
               <div className="lg:col-span-7 space-y-6">
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/30 border border-indigo-400/30 text-indigo-100 text-xs font-semibold mb-3 backdrop-blur-sm">
@@ -275,7 +263,6 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Feature Box Section */}
               <div className="lg:col-span-5">
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-1 border border-white/20 shadow-lg">
                   <div 
@@ -289,10 +276,6 @@ const App: React.FC = () => {
                       <div className="space-y-1">
                         <h3 className="font-bold text-white flex items-center gap-2">
                           찾는 용어가 없나요?
-                          <span className="flex h-2 w-2 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
-                          </span>
                         </h3>
                         <p className="text-sm text-indigo-100 leading-snug">
                           검색창에 단어를 입력하면<br/>
@@ -307,7 +290,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTerms.map((term) => (
             <TermCard 
@@ -317,7 +299,6 @@ const App: React.FC = () => {
             />
           ))}
 
-          {/* Magic Card: Appear when searching but no results */}
           {searchQuery && filteredTerms.length === 0 && (
             <div 
               onClick={isGenerating ? undefined : handleCreateTerm}
@@ -352,7 +333,6 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Empty State (Not searching, just empty filter) */}
         {!searchQuery && filteredTerms.length === 0 && (
            <div className="text-center py-20">
             <div className="inline-block p-4 rounded-full bg-slate-100 mb-4">
@@ -362,17 +342,22 @@ const App: React.FC = () => {
             <p className="text-slate-500">다른 카테고리를 선택해보세요.</p>
           </div>
         )}
-
       </main>
 
-      {/* Footer */}
+      {/* Footer Updated */}
       <footer className="border-t border-slate-200 bg-white py-8 mt-10">
         <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
-          <p>© 2024 AI Builder's Dictionary. Designed for No-code Makers.</p>
+          <a 
+            href="https://xn--design-hl6wo12cquiba7767a.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hover:text-indigo-600 transition-colors font-medium"
+          >
+            떨림과울림Design.com
+          </a>
         </div>
       </footer>
 
-      {/* Modal */}
       {selectedTerm && (
         <TermModal 
           term={selectedTerm} 
